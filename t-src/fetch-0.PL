@@ -28,7 +28,7 @@ my @retval = ();			# return array from fetchrow_array()
 
 # ------ set up return values for DBI fetch*() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_array(2, "FETCH");
+$md->set_retval_array(2, "FETCH", ());
 $dbh->prepare("other SQL");
 if (defined($dbh->fetch())) {
 	print "ERROR\n";

@@ -51,6 +51,11 @@ To install this module type the following:
    make test
    make install
 
+Makefile.PL will ask you for DBI configuration parameters,
+placing them into ./DBI.cfg.  This DBI.cfg is not removed
+even by "make distclean", which should make repeated testing
+a little easier.
+
 DEPENDENCIES
 
 This module requires these other modules and libraries:

@@ -23,12 +23,13 @@ our @EXPORT_OK                          # symbols to export upon request
  = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();                     # symbols to always export
 our @ISA = qw(Exporter);                # we ISA Exporter :)
-our $VERSION = '0.50';                  # our version number
+our $VERSION = '0.60';                  # our version number
 
 
 # ------ file-global variables
 my %array_retval  = ();                 # return array values for matching SQL
 my @bad_params    = ();                 # list of bad parameter values
+my @bind_columns  = ();                 # bind_columns() list of refs to bind
 my @cur_array     = ();                 # current array to return
 my $cur_scalar    = undef;              # current scalar to return
 my $cur_sql       = "";                 # current SQL
@@ -37,6 +38,7 @@ my $fail_param    = 0;                  # TRUE when failing due to bad param
 my $instance      = undef;              # my only instance
 my $mock          = "";                 # mock DBI object from Test::MockObject::Extends
 my $object        = "";                 # our fake DBI object
+my %rows_retval   = ();                 # return DBI::rows() values for matching SQL
 my %scalar_retval = ();                 # return scalar values for matching SQL
 my $type          = 0;                  # DBI testing type from command line
 
@@ -98,34 +100,94 @@ sub fail {
 }
 
 
+# ------ bind an array to DBI columns bound by bind_columns()
+sub bind_array {
+    my $i;                              # generic loop index
+
+    return if (scalar(@bind_columns == 0));
+
+    for ($i = 0; $i < scalar(@bind_columns); $i++) {
+        ${$bind_columns[$i]} = $_[$i];
+    }
+}
+
+
 # ------ force an array return value
 sub force_retval_array {
     local $_;                           # localized topic
+    my @array = ();                     # generic array
 
     foreach (@{ $array_retval{MOCKDBI_WILDCARD()} }, @{ $array_retval{$type} }) {
         if (sql_match($cur_sql, $_->{"SQL"})) {
             if (ref($_->{"retval"}) eq "ARRAY"
              && ref($_->{"retval"}->[0]) eq "CODE") {
-                return &{ $_->{"retval"}->[0] }();
+                @array = &{ $_->{"retval"}->[0] }();
+                if (scalar(@array) > 0) {
+                    bind_array(@array);
+                }
+                return @array;
             }
-            return @{ $_->{"retval"} };
+            @array = @{ $_->{"retval"} };
+            bind_array(@array);
+            return @array;
         }
     }
     if (scalar(@_) < 1) {
-        return undef;
+        return ();
     }
-    if (scalar(@_) == 1 && !defined($_[0])) {
-        return undef;
-    }
+    bind_array(@_);
     return @_;
+}
+
+
+# ------ bind an arrayref to DBI columns bound by bind_columns()
+sub bind_arrayref {
+    my $i;                              # generic loop index
+
+    return if (scalar(@bind_columns == 0));
+    if (ref($_[0]) ne "ARRAY") {
+        for ($i = 0; $i < scalar(@bind_columns); $i++) {
+            ${$bind_columns[$i]} = undef;
+        }
+    }
+
+    for ($i = 0; $i < scalar(@bind_columns); $i++) {
+        ${$bind_columns[$i]} = $_[0]->[$i];
+    }
 }
 
 
 # ------ force a scalar return value
 sub force_retval_scalar {
     local $_;                           # localized topic
+    my $arrayref = "";                  # (probably) generic arrayref
 
     foreach (@{ $scalar_retval{MOCKDBI_WILDCARD()} }, @{ $scalar_retval{$type} }) {
+        if (sql_match($cur_sql, $_->{"SQL"})) {
+            if (ref($_->{"retval"}) eq "CODE") {
+                $arrayref = &{ $_->{"retval"} }();
+                if (defined($arrayref) && ref($arrayref) eq "ARRAY") {
+                    bind_arrayref($arrayref);
+                }
+                return $arrayref;
+            }
+            $arrayref = $_->{"retval"};
+            bind_arrayref($arrayref);
+            return $arrayref;
+        }
+    }
+    if (defined($_[0])) {
+        bind_arrayref($_[0]);
+    }
+    return $_[0];
+}
+
+
+# ------ force a DBI::rows() return value
+sub force_retval_rows {
+    local $_;                           # localized topic
+
+    foreach (@{ $rows_retval{MOCKDBI_WILDCARD()} }, @{ $rows_retval{$type} }) {
         if (sql_match($cur_sql, $_->{"SQL"})) {
             if (ref($_->{"retval"}) eq "CODE") {
                 return &{ $_->{"retval"} }();
@@ -141,7 +203,7 @@ sub force_retval_scalar {
 sub fake {
     my $method = shift;                 # file-global method name
     my $arg    = shift;                 # first method arg
-    my $retval = shift;                 # scalar or $_[0] to return
+    my $retval;                         # scalar to return
 
     print "\n$method()";
     if (defined($arg)) {
@@ -152,14 +214,21 @@ sub fake {
         return undef;
     }
 
-    if ($method =~ m/^fetch/ || $method =~ m/^select/) {
+    if ($method eq "rows") {
+        $retval = shift;
+        return force_retval_rows($retval);
+    } elsif ($method =~ m/^fetch/ || $method =~ m/^select/) {
         if ($method eq "fetch"
+         || $method eq "fetchrow"
          || $method eq "fetchrow_array"
          || $method eq "selectrow_array") {
-            return force_retval_array($retval, @_);
+            return force_retval_array(@_);
         }
+        $retval = shift;
         return force_retval_scalar($retval);
     }
+
+    $retval = shift;
     return $retval;
 }
 
@@ -187,9 +256,9 @@ sub set_dbi_test_type {
 # ------ force a DBI method to be bad
 sub bad_method {
     my $self   = shift;                 # my blessed self
-    my $method = shift;     # method name
-    my $type   = shift;     # type number from --dbitest=TYPE
-    my $sql    = shift;     # SQL pattern for badness
+    my $method = shift;                 # method name
+    my $type   = shift;                 # type number from --dbitest=TYPE
+    my $sql    = shift;                 # SQL pattern for badness
 
     $fail{$method}->{$type}->{"SQL"} = $sql;
 }
@@ -198,8 +267,8 @@ sub bad_method {
 # ------ set up an array return value for the specified SQL pattern
 sub set_retval_array {
     my $self   = shift;                 # my blessed self
-    my $type   = shift;     # type number from --dbitest=TYPE
-    my $sql    = shift;     # SQL pattern for badness
+    my $type   = shift;                 # type number from --dbitest=TYPE
+    my $sql    = shift;                 # SQL pattern for badness
 
     push @{ $array_retval{$type} },
      { "SQL" => $sql, "retval" => [ @_ ] },
@@ -209,10 +278,21 @@ sub set_retval_array {
 # ------ set up scalar return value for the specified SQL pattern
 sub set_retval_scalar {
     my $self   = shift;                 # my blessed self
-    my $type   = shift;     # type number from --dbitest=TYPE
-    my $sql    = shift;     # SQL pattern for badness
+    my $type   = shift;                 # type number from --dbitest=TYPE
+    my $sql    = shift;                 # SQL pattern for badness
 
     push @{ $scalar_retval{$type} },
+     { "SQL" => $sql, "retval" => $_[0] },
+}
+
+
+# ------ set up DBI::rows return value for the specified SQL pattern
+sub set_rows {
+    my $self   = shift;                 # my blessed self
+    my $type   = shift;                 # type number from --dbitest=TYPE
+    my $sql    = shift;                 # SQL pattern for badness
+
+    push @{ $rows_retval{$type} },
      { "SQL" => $sql, "retval" => $_[0] },
 }
 
@@ -220,9 +300,9 @@ sub set_retval_scalar {
 # ------ force a parameter to be bad
 sub bad_param {
     my $self      = shift;              # my blessed self
-    my $bad_type  = shift;     # type number from --dbitest=TYPE
-    my $bad_param = shift;  # "known" bad parameter number
-    my $bad_value = shift;  # "known" bad parameter value
+    my $bad_type  = shift;              # type number from --dbitest=TYPE
+    my $bad_param = shift;              # "known" bad parameter number
+    my $bad_value = shift;              # "known" bad parameter value
 
         push(@bad_params, [ $bad_type, $bad_param, $bad_value ] );
 }
@@ -260,11 +340,13 @@ if ($type) {
         $object = bless({}, "DBI");
         $cur_sql = "CONNECT TO $dsn AS $user WITH $pass";
         $fail_param = 0;
+        @bind_columns = ();
         return fake("connect", $cur_sql, $object);
      },
      disconnect =>  sub {
         $cur_sql = "DISCONNECT";
         $fail_param = 0;
+        @bind_columns = ();
         return fake("disconnect", $_[1], 1);
      },
      errstr =>  sub {
@@ -273,18 +355,22 @@ if ($type) {
      prepare =>  sub {
         $cur_sql = Define($_[1]);
         $fail_param = 0;
+        @bind_columns = ();
         return fake("prepare", $_[1], $object);
      },
      prepare_cached =>  sub {
         $cur_sql = Define($_[1]);
         $fail_param = 0;
+        @bind_columns = ();
         return fake("prepare_cached", $_[1], $object);
      },
      commit =>  sub {
         return fake("commit", $_[1], 1);
      },
      bind_columns =>  sub {
-        return fake("bind_columns", $_[1], 1);
+        shift;
+        @bind_columns = @_;
+        return fake("bind_columns", $_[0], 1);
      },
      bind_param => sub {
         my $self         = shift;         # my blessed self
@@ -317,6 +403,9 @@ if ($type) {
         }
         return 1;
      },
+     do =>  sub {
+        return fake("do", $_[1], 1);
+     },
      execute =>  sub {
         return fake("execute", $_[1], 1);
      },
@@ -331,13 +420,16 @@ if ($type) {
         return fake("fetchrow_arrayref", $_[1], undef);
      },
      fetchrow_array =>  sub {
-        return fake("fetchrow_array", $_[1], undef);
+        return fake("fetchrow_array", $_[1]);
      },
      fetchrow =>  sub {
-        return fake("fetchrow", $_[1], undef);
+        return fake("fetchrow", $_[1]);
      },
      fetch =>  sub {
-        return fake("fetch", $_[1], undef);
+        return fake("fetch", $_[1]);
+     },
+     rows =>  sub {
+        return fake("rows", $_[1], 0);
      },
      );
     $mock->fake_new("DBI");
@@ -393,6 +485,12 @@ Test::MockDBI - Mock DBI interface for testing
    $matching_sql,
    $retval || CODEREF);
   $mock_dbi->set_retval_scalar(MOCKDBI_WILDCARD, ...
+
+  $mock_dbi->set_rows(
+   $dbi_testing_type,
+   $matching_sql,
+   $rows || CODEREF);
+  $mock_dbi->set_rows(MOCKDBI_WILDCARD, ...
 
 =head1 DESCRIPTION
 
@@ -486,6 +584,14 @@ and fetchrow() return the scalar value $retval.  If retval
 is actually a CODEREF, the scalar returned from calling
 that subroutine will be returned instead.
 
+=item set_rows()
+
+When the DBI testing type is $dbi_testing_type and
+the current SQL matches the pattern in the string
+$matching_sql, rows() returns the scalar value $rows.
+If retval is actually a CODEREF, the scalar returned from
+calling that subroutine will be returned instead.
+
 =back
 
 =head1 NOTES
@@ -523,18 +629,23 @@ you can use:
     cp samples/DBI.cfg .
 to create a sample DBM database for testing Test::MockDBI.
 
+DBI fetchrow() is supported, although it is so old it
+is no longer documented in the mainline DBI docs.
+
 Test::MockDBI can be viewed as a "printf() and scratch
 head" helper for DBI applications.
 
 =head1 SEE ALSO
 
-DBI, Test::MockObject, Test::More, Test::Simple,
-IO::String (for capturing standard output)
+DBI, Test::MockObject::Extends, Test::Simple, Test::More,
+perl(1)
 
 DBD::Mock (another approach to testing DBI applications)
 
 DBI trace() (still another approach to testing DBI
 applications)
+
+IO::String (for capturing standard output)
 
 =head1 AUTHOR
 

@@ -1,3 +1,11 @@
+- Move database-handle-specific data to the mock DBI 
+  database handle object, so that different database
+  handles can have different Test::MockDBI configurations.
+  This will probably involve changing the Test::MockDBI API
+  to include the database handle as an argument.   Also, the
+  DBI functions that return a statement handle will need to
+  be modified to return the correct mock DBI database handle.
+
 - Add code so the output of Test::MockDBI can go to different
   places rather than just standard output.  This would allow
   use of Test::MockDBI in environments where examining

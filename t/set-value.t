@@ -2,24 +2,24 @@
 
 
 # ------ use/require pragmas
-use strict;				# better compile-time checking
-use warnings;				# better run-time checking
-use Test::More tests => 23;		# advanced testing
+use strict;				                # better compile-time checking
+use warnings;				            # better run-time checking
+use Test::More tests => 25;		        # advanced testing
 
 
 # ------ define variables
-my $out = "";				# test command output
+my $out = "";				            # test command output
 
 
 # ------ fetchrow_array() without args
 $out = `t/fetchrow_array-0.pl 2>&1`;
-like($out, qr/fetchrow_array\(\).+UNDEF.+fetchrow_array\(\).+EMPTY ARRAY/ms,
+like($out, qr/fetchrow_array\(\).+OK.+fetchrow_array\(\).+EMPTY ARRAY/ms,
  "fetchrow_array() without args");
 
 
 # ------ fetchrow_array() with 1-element array
 $out = `t/fetchrow_array-1.pl 2>&1`;
-like($out, qr/fetchrow_array\(\).+UNDEF.+fetchrow_array\(\).+OK/ms,
+like($out, qr/fetchrow_array\(\).+OK.+fetchrow_array\(\).+OK/ms,
  "fetchrow_array() with 1-element array");
 
 
@@ -30,9 +30,21 @@ like($out, qr/fetchrow_array\(\).+UNDEF.+fetchrow_array\(\).+OK/ms,
 
 
 # ------ fetch() without args
-$out = `t/fetch-0.pl 2>&1`;
+$out = `t/fetch-empty.pl 2>&1`;
 like($out, qr/fetch\(\).+UNDEF.+fetch\(\).+EMPTY ARRAY/ms,
  "fetch() without args");
+
+
+# ------ fetch() with empty list
+$out = `t/fetch-0.pl 2>&1`;
+like($out, qr/fetch\(\).+UNDEF.+fetch\(\).+EMPTY ARRAY/ms,
+ "fetch() with empty list");
+
+
+# ------ fetch() with 1-element of undef list
+$out = `t/fetch-undef.pl 2>&1`;
+like($out, qr/fetch\(\).+OK.+fetch\(\).+OK/ms,
+ "fetch() with 1-element of undef list");
 
 
 # ------ fetch() with 1-element array

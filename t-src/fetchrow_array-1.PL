@@ -13,27 +13,28 @@ BEGIN { push @ARGV, "--dbitest=2"; }
 
 
 # ------ use/require pragmas
-use strict;				# better compile-time checking
-use warnings;				# better run-time checking
-use lib "blib/lib";			# use local modules
-use Test::MockDBI;			# what we are testing
+use strict;				                # better compile-time checking
+use warnings;				            # better run-time checking
+use lib "blib/lib";			            # use local modules
+use Test::MockDBI;			            # what we are testing
 
 
 # ------ define variables
-my $dbh    = "";			# mock DBI database handle
-my $md					# Test::MockDBI instance
+my $dbh    = "";			            # mock DBI database handle
+my $md					                # Test::MockDBI instance
  = Test::MockDBI::get_instance();
-my @retval = ();			# return value from fetchrow_array()
+my @retval = ();			            # return values from fetchrow_array()
 
 
 # ------ set up return values for DBI fetch*() methods
 $dbh = DBI->connect("", "", "");
 $md->set_retval_array(2, "FETCHROW_ARRAY", 42);
 $dbh->prepare("other SQL");
-if (defined($dbh->fetchrow_array())) {
-	print "ERROR\n";
+@retval = $dbh->fetchrow_array();
+if (scalar(@retval) == 0) {
+	print "OK\n";
 } else {
-	print "UNDEF\n";
+	print "ERROR\n";
 }
 $dbh->finish();
 $dbh->prepare("FETCHROW_ARRAY");

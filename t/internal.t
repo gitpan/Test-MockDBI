@@ -6,13 +6,13 @@ BEGIN { push @ARGV, "--dbitest"; }
 
 
 # ------ use/require pragmas
-use strict;				# better compile-time checking
-use warnings;				# better run-time checking
-use Test::More tests => 17;		# advanced testing
+use strict;				                # better compile-time checking
+use warnings;				            # better run-time checking
+use Test::More tests => 19;		        # advanced testing
 
 
 # ------ define variables
-my $dbh = "";				# mock DBI database handle
+my $dbh = "";				            # mock DBI database handle
 
 
 # ------ check that Test::MockDBI loads OK
@@ -98,3 +98,13 @@ is($dbh->fetchrow(), undef,
 # ------ DBI fetch()
 is($dbh->fetch(), undef,
  "DBI fetch()");
+
+
+# ------ DBI do()
+is($dbh->do(), 1,
+ "DBI do()");
+
+
+# ------ DBI rows()
+is($dbh->rows(), 0,
+ "DBI rows()");

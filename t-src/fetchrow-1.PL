@@ -28,7 +28,7 @@ my $retval = "";			# return value from fetchrow()
 
 # ------ set up return values for DBI fetchrow*() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_scalar(2, "FETCHROW", [ 1016 ]);
+$md->set_retval_array(2, "FETCHROW", 1016);
 $dbh->prepare("other SQL");
 if (defined($dbh->fetchrow())) {
 	print "ERROR\n";
@@ -37,8 +37,8 @@ if (defined($dbh->fetchrow())) {
 }
 $dbh->finish();
 $dbh->prepare("FETCHROW");
-$retval = $dbh->fetchrow();
-if (defined($retval) && ref($retval) eq "ARRAY" && $retval->[0] == 1016) {
+($retval) = $dbh->fetchrow();
+if (defined($retval) && $retval == 1016) {
 	print "OK\n";
 } else {
 	print "ERROR\n";

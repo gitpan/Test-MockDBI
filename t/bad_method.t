@@ -6,11 +6,11 @@ BEGIN { push @ARGV, "--dbitest=2"; }
 
 
 # ------ use/require pragmas
-use strict;				# better compile-time checking
-use warnings;				# better run-time checking
-use Test::More tests => 15;		# advanced testing
-use lib "blib/lib";			# use local modules
-use Test::MockDBI;			# what we are testing
+use strict;				                # better compile-time checking
+use warnings;				            # better run-time checking
+use Test::More tests => 17;		        # advanced testing
+use lib "blib/lib";			            # use local modules
+use Test::MockDBI;			            # what we are testing
 
 
 # ------ define variables
@@ -26,6 +26,8 @@ $md->bad_method("errstr",            2, "");
 $md->bad_method("prepare",           2, "");
 $md->bad_method("prepare_cached",    2, "");
 $md->bad_method("commit",            2, "");
+$md->bad_method("do",                2, "");
+$md->bad_method("rows",              2, "");
 $md->bad_method("bind_columns",      2, "");
 $md->bad_method("bind_param",        2, "");
 $md->bad_method("execute",           2, "");
@@ -113,6 +115,16 @@ is($dbh->fetchrow(), undef,
 # ------ also SQL match with explicit pattern but no SQL
 is($dbh->fetch(), undef,
  "DBI fetch() + pattern without SQL");
+
+
+# ------ DBI do()
+is($dbh->do(), undef,
+ "DBI do()");
+
+
+# ------ DBI rows()
+is($dbh->rows(), undef,
+ "DBI rows()");
 
 
 # ------ SQL without pattern

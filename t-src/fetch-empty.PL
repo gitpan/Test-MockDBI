@@ -1,11 +1,11 @@
-# Source for t/fetchrow_array-0.pl, so we can use correct Perl binary in #!
+# Source for t/fetch-empty.pl, so we can use correct Perl binary in #!
 
 use Config;
 
 open($ofh, ">$ARGV[0]") || die "cannot create $ARGV[0]: $!\n";
 print $ofh "$Config{startperl}\n";
 print $ofh <<'EOF';
-# Test::MockDBI fetchrow_array() when given no array to return
+# Test::MockDBI fetch() when given no array to return
 
 
 # ------ enable testing mock DBI
@@ -28,17 +28,16 @@ my @retval = ();			# return array from fetchrow_array()
 
 # ------ set up return values for DBI fetch*() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_array(2, "FETCHROW_ARRAYREF");
+$md->set_retval_array(2, "FETCH");
 $dbh->prepare("other SQL");
-@retval = $dbh->fetchrow_array();
-if (scalar(@retval) == 0) {
-	print "OK\n";
-} else {
+if (defined($dbh->fetch())) {
 	print "ERROR\n";
+} else {
+	print "UNDEF\n";
 }
 $dbh->finish();
-$dbh->prepare("FETCHROW_ARRAYREF");
-@retval = $dbh->fetchrow_array();
+$dbh->prepare("FETCH");
+@retval = $dbh->fetch();
 if (scalar(@retval) > 0) {
 	print "ERROR\n";
 } else {

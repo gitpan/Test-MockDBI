@@ -1,0 +1,20 @@
+- Add code so the output of Test::MockDBI can go to different
+  places rather than just standard output.  This would allow
+  use of Test::MockDBI in environments where examining
+  standard output is impractical at best, like Apache modules.
+  IO::String would help in redirecting output to strings.
+
+- Diverting output could either create a trace of DBI methods
+  called with their arguments, or just keep around the most
+  current DBI method execution data.  Probably both types of
+  diversions should be supported.
+
+- Add the magic anti-shell incantation to force Perl to run
+  the separate test programs right after the #! line.
+
+- Increase the number of DBI methods mocked up.
+
+- Figure out how DBI::quote() should work when mocked-up.
+
+- Could Test::MockDBI and DBD::Mock work together?  Does this
+  even make any sense?

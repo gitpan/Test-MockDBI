@@ -5,8 +5,8 @@ MANIFEST
 lib/Test/MockDBI.pm
 README
 TODO
+samples/DBD-setup.pl
 samples/DBI.cfg
-samples/sample.pl
 t-src/bad_param-diff-type.PL
 t-src/bad_param-ok-2.PL
 t-src/bad_param-ok-2of3.PL

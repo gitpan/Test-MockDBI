@@ -1,5 +1,11 @@
 Revision history for Perl extension Test::MockDBI.
 
+0.61  Thu Feb  3 09:28:49 EST 2005
+    - Fixed version number in README.
+    - Fixed copyright dates in README.
+    - Moved test DBD setup to samples/DBD-setup.pl
+      from samples/sample.pl.
+
 0.60  Thu Jan 27 17:18:47 EST 2005
     - Added DBI::do() and DBI::rows().
     - DBI::bind_columns() now works, rather than only

@@ -1,4 +1,4 @@
-Test/MockDBI version 0.50
+Test/MockDBI version 0.61
 =========================
 
 Test::MockDBI lets you test DBI interfaces by mocking-up the
@@ -96,8 +96,8 @@ Mark Leighton Fisher, mark-fisher@fisherscreek.com.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004 Fisher's Creek Consulting, LLC.
-Copyright (C) 2004 DeepData, Inc.
+Copyright (C) 2004-2005 Fisher's Creek Consulting, LLC.
+Copyright (C) 2004-2005 DeepData, Inc.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

@@ -23,7 +23,7 @@ our @EXPORT_OK                          # symbols to export upon request
  = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();                     # symbols to always export
 our @ISA = qw(Exporter);                # we ISA Exporter :)
-our $VERSION = '0.60';                  # our version number
+our $VERSION = '0.61';                  # our version number
 
 
 # ------ file-global variables
@@ -625,9 +625,10 @@ If for some strange reason you should be installing
 Test::MockDBI into a system with DBI but without any
 DBD drivers (apart from DBD drivers bundled with DBI),
 you can use:
-    perl samples/sample.pl
+    perl samples/DBD-setup.pl
     cp samples/DBI.cfg .
-to create a sample DBM database for testing Test::MockDBI.
+to create a sample DBM database (zipcodes.*) for testing
+Test::MockDBI (DBD::DBM ships with DBI).
 
 DBI fetchrow() is supported, although it is so old it
 is no longer documented in the mainline DBI docs.

@@ -1,34 +1,6 @@
 Revision history for Perl extension Test::MockDBI.
 
-0.61  Thu Feb  3 09:28:49 EST 2005
-    - Fixed version number in README.
-    - Fixed copyright dates in README.
-    - Moved test DBD setup to samples/DBD-setup.pl
-      from samples/sample.pl.
-
-0.60  Thu Jan 27 17:18:47 EST 2005
-    - Added DBI::do() and DBI::rows().
-    - DBI::bind_columns() now works, rather than only
-      pretending to work.
-    - DBI::fetchrow() was corrected to return an array.
-      This function is so old, it is no longer documented
-      in the main DBI docs.
-    - The list-returning DBI fetch*() functions now
-      return an empty list when set_retval_array() gives
-      them an empty list or no list.
-    - A list consisting of 1 undef element is now
-      returned as such by the list-returning DBI
-      fetch*() methods.
-    - README now talks a little about the testing
-      configuration file, DBI.cfg.
-    - NOTE: The Perl Cookbook, 2nd Edition, recipe 10.10
-      has a good explanation of list/array return values :).
-
-0.50  Wed Dec  1 08:34:30 EST 2004
+0.01  Fri Jul 15 12:20:09 2005
 	- original version; created by h2xs 1.22 with options
-		--compat-version=5.8.0 -AXfn Test::MockDBI
-    - Separate test program sources are now in
-      "t-src/*.PL", with a PL_FILES directive in
-      Makefile.PL to create the actual test programs as
-      "t/*.pl".
+		-AX -n Test::MockDBI
 

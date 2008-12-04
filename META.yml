@@ -1,10 +1,23 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Test-MockDBI
-version:      0.01
-version_from: lib/Test/MockDBI.pm
-installdirs:  site
+--- #YAML:1.0
+name:               Test-MockDBI
+version:            0.62
+abstract:           Mock DBI interface for testing
+author:
+    - Mark Leighton Fisher <mark-fisher@fisherscreek.com>
+license:            unknown
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
 requires:
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.28
+    DBI:                  0
+    File::Spec::Functions:  0
+    Test::MockObject:     0.14
+    Test::More:           0
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.48
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4

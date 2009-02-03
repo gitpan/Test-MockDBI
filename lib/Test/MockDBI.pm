@@ -2,7 +2,7 @@ package Test::MockDBI;
 
 # Test DBI interfaces using Test::MockObject.
 
-# $Id: MockDBI.pm 244 2008-12-04 12:57:07Z aff $
+# $Id: MockDBI.pm 283 2009-02-03 12:39:11Z aff $
 
 # ------ use/require pragmas
 use 5.008;                              # minimum Perl is V5.8.0
@@ -25,7 +25,7 @@ our @EXPORT_OK                          # symbols to export upon request
  = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();                     # symbols to always export
 our @ISA = qw(Exporter);                # we ISA Exporter :)
-our $VERSION = '0.62';                  # our version number
+our $VERSION = '0.64';                  # our version number
 
 # ------ file-global variables
 my %array_retval  = ();                 # return array values for matching SQL
@@ -383,6 +383,9 @@ if ($type) {
         $fail_param = 0;
         @bind_columns = ();
         return _fake("connect", $cur_sql, $object);
+     },
+     ping =>  sub {
+         return _fake("ping", $_[1], 1);
      },
      disconnect =>  sub {
         $cur_sql = "DISCONNECT";

@@ -52,6 +52,7 @@ t/fetchrow_hashref-1.t
 t/fetchrow_hashref-2.t
 t/fetchrow_hashref-many.t
 t/internal.t
+t/ping.t
 t/set_dbi_test_type.t
 t/set_rows-different-numeric.t
 t/set_rows-no-arg.t

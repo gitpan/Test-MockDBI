@@ -1,4 +1,4 @@
-# $Id: $
+# $Id: Makefile.PL 283 2009-02-03 12:39:11Z aff $
 
 use strict;
 use warnings;
@@ -6,14 +6,16 @@ use warnings;
 use 5.008;
 use ExtUtils::MakeMaker;
 
+# Set PERL_MM_USE_DEFAULT to make prompt use default, or set
+# AUTOMATED_TESTING to skip altogether
 
 # ------ get DBI parameters for later testing
-if (!-s "DBI.cfg") {
+if (!-s "DBI.cfg" and !$ENV{AUTOMATED_TESTING}) {
 	$| = 1;
-	my $dsn  = prompt("DBI data source:");
-	my $user = prompt("DBI username:");
-	my $pass = prompt("DBI password:");
-	my $sql  = prompt("DBI 'SELECT' SQL:");
+	my $dsn  = prompt("DBI data source:", "");
+	my $user = prompt("DBI username:", "");
+	my $pass = prompt("DBI password:", "");
+	my $sql  = prompt("DBI 'SELECT' SQL:", "");
 	my $ofh;
 	open($ofh, ">", "DBI.cfg") || die "cannot create DBI.cfg: $!\n";
 	print $ofh <<"endPRINT";

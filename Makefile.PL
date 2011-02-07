@@ -36,6 +36,7 @@ WriteMakefile(
   'VERSION_FROM'  => 'lib/Test/MockDBI.pm',
   'ABSTRACT_FROM' => 'lib/Test/MockDBI.pm',
   'AUTHOR'        => 'Mark Leighton Fisher <mark-fisher@fisherscreek.com>',
+  'LICENSE'       => 'perl',
   'PREREQ_PM'     => {
     'DBI'                   => 0,
     'Test::MockObject'      => 0.14,

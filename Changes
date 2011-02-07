@@ -1,5 +1,9 @@
 Revision history for Perl extension Test::MockDBI.
 
+0.65  Mon Feb  7 07:46:08 CET 2011
+    - Added LICENSE = perl to Makefile.PL.
+    - Removed duplicate 'use Data::Dumper' (See cpanratings).
+
 0.64  Tue Feb  3 13:37:20 CET 2009
     - Support non-interactive testing with 
         PERL_MM_USE_DEFAULT, and/or

@@ -11,7 +11,6 @@ use warnings;                           # better run-time checking
 use Data::Dumper;                       # dump data in a pleasing format
 use Test::MockObject::Extends;          # mock objects for extending classes
 require Exporter;                       # we are an Exporter
-use Data::Dumper;
 
 
 # ------ exportable constant
@@ -25,7 +24,7 @@ our @EXPORT_OK                          # symbols to export upon request
  = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();                     # symbols to always export
 our @ISA = qw(Exporter);                # we ISA Exporter :)
-our $VERSION = '0.64';                  # our version number
+our $VERSION = '0.65';                  # our version number
 
 # ------ file-global variables
 my %array_retval  = ();                 # return array values for matching SQL

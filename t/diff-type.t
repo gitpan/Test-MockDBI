@@ -30,7 +30,7 @@ $md->set_retval_array( $test_sql, 2, 42, 476);
 
 
 # ------ bad_method() fails on different DBI type
-is(ref($dbh = DBI->connect()), "DBI",
+is(ref($dbh = DBI->connect()), "DBI::db",
  "bad_method() fails on different DBI type");
 
 

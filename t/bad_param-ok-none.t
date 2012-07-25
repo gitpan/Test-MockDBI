@@ -35,9 +35,9 @@ like($md->set_retval_scalar(2, "other SQL", [42]),
 
 # Connect and prepare
 $dbh = DBI->connect("", "", "");
-isa_ok($dbh, q{DBI}, q{Expect a DBI reference});
+isa_ok($dbh, q{DBI::db}, q{Expect a DBI::db reference});
 $select = $dbh->prepare("other SQL");
-isa_ok($select, q{DBI}, q{Expect a DBI reference});
+isa_ok($select, q{DBI::db}, q{Expect a DBI::db reference});
 
 # Verify that '46062' param is good
 ok(!defined($md->_is_bad_param(2,1,q{46062})), q{Expect param to be good (scalar context)});

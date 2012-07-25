@@ -33,9 +33,9 @@ like($md->bad_param(2, 1, "jimbo"),
 
 # Connect and prepare
 $dbh = DBI->connect("", "", "");
-isa_ok($dbh, q{DBI}, q{Expect a DBI reference});
+isa_ok($dbh, q{DBI::db}, q{Expect a DBI::db reference});
 $select = $dbh->prepare("other SQL");
-isa_ok($select, q{DBI}, q{Expect a DBI reference});
+isa_ok($select, q{DBI::db}, q{Expect a DBI::db reference});
 
 like($md->set_retval_scalar(3, "other SQL", [42]),
   qr/^\d+$/, q{Expect a positive integer (set_retval_scalar))});

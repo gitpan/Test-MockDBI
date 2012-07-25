@@ -9,7 +9,7 @@ BEGIN { push @ARGV, "--dbitest"; }
 use strict;      # better compile-time checking
 use warnings;    # better run-time checking
 use Test::More tests => 19;    # advanced testing
-
+use Test::Warn;
 
 # ------ define variables
 my $dbh = "";				            # mock DBI database handle
@@ -20,7 +20,7 @@ BEGIN { use_ok('Test::MockDBI') };
 
 # ------ DBI connect()
 $dbh = DBI->connect();
-is(ref($dbh), "DBI",
+is(ref($dbh), "DBI::db",
  "DBI connect()");
 
 
@@ -30,7 +30,7 @@ is($dbh->disconnect(), 1,
 
 
 # ------ DBI prepare()
-ok(ref($dbh->prepare("Xy")) eq "DBI" && !$dbh->errstr,
+ok(ref($dbh->prepare("Xy")) eq "DBI::db" && !$dbh->errstr,
  "DBI prepare()");
 
 
@@ -40,7 +40,7 @@ is($dbh->prepare("Xy"), $dbh,
 
 
 # ------ DBI prepare_cached()
-ok(ref($dbh->prepare_cached("Xy")) eq "DBI" && !$dbh->errstr,
+ok(ref($dbh->prepare_cached("Xy")) eq "DBI::db" && !$dbh->errstr,
  "DBI prepare_cached()");
 
 
@@ -50,13 +50,13 @@ is($dbh->prepare_cached("Xy"), $dbh,
 
 
 # ------ DBI commit()
-is($dbh->commit(), 1,
- "DBI commit()");
+my $warn_commit = [qr/Cannot commit when AutoCommit/, qr/DBI::db commit failed/];
+warnings_like { $dbh->commit() } $warn_commit, "Expect warning like (Cannot commit when AutoCommit is on) DBI::db commit failed: SQL0100 Cannot commit when AutoCommit is on. SQLSTATE=02000";
 
 
 # ------ DBI bind_columns()
-is($dbh->bind_columns(), 1,
- "DBI bind_columns()");
+my $warning_bind = qr/DBI::db bind_columns failed/;
+warnings_like { $dbh->bind_columns(); } $warning_bind, "DBI::db bind_columns failed: SQL0100 There are no columns for binding. SQLSTATE=02000";
 
 
 # ------ DBI bind_param()
@@ -100,7 +100,7 @@ is($dbh->fetch(), undef,
 
 
 # ------ DBI do()
-is($dbh->do(), 1,
+is($dbh->do("Xy"), 1,
  "DBI do()");
 
 

@@ -9,7 +9,7 @@ BEGIN { push @ARGV, "--dbitest"; }
 # ------ use/require pragmas
 use strict;				                # better compile-time checking
 use warnings;				            # better run-time checking
-use Test::More tests => 18;		        # advanced testing
+use Test::More tests => 20;		        # advanced testing
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );			            # use local module
 use Test::MockDBI;			            # what we are testing
@@ -297,6 +297,20 @@ $tmd->set_retval_scalar(1, "return value is set by arrayref not coderef, many co
  [ 0.125, "China", -1421 ]);
 $dbh->fetchrow_arrayref();
 ok($column1 == 0.125 && $column2 eq "China" && $column_many == -1421,
+ "return value is set by arrayref not coderef, many columns");
+
+# ------ return value is set by arrayref not coderef, many columns
+$dbh->prepare("return value is set by hashref not coderef, many columns");
+$column1     = 0;
+$column2     = 0;
+$column_many = 0;
+$dbh->bind_columns(\$column1, \$column2, \$column_many);
+$tmd->set_retval_scalar(1, "return value is set by hashref not coderef, many columns",
+ [ {test => 1}, "China", -1421 ]);
+$dbh->fetchrow_arrayref();
+ok(ref $column1 eq 'HASH',
+ "return value of coulmn 1 is hashref");
+ok($column2 eq "China" && $column_many == -1421,
  "return value is set by arrayref not coderef, many columns");
 
 __END__

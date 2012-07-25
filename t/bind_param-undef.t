@@ -24,7 +24,7 @@ $md	= Test::MockDBI::get_instance();
 isa_ok($md, q{Test::MockDBI}, q{Expect a Test::MockDBI reference});
 
 $dbh = DBI->connect("universe", "mortal", "root-password");
-isa_ok($dbh, q{DBI}, q{Expect a DBI reference});
+isa_ok($dbh, q{DBI::db}, q{Expect a DBI::db reference});
   
 is($dbh->bind_param(1, "dan", { "horse" => "big" }), 1, q{Expect hash param to work});
 is($dbh->bind_param(2, "sugar", "small"), 1, q{Expect scalar param to work});

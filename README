@@ -1,4 +1,4 @@
-Test/MockDBI version 0.61
+Test/MockDBI version 0.66
 =========================
 
 Test::MockDBI lets you test DBI interfaces by mocking-up the

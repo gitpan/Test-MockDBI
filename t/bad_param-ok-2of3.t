@@ -10,7 +10,7 @@ use strict;            # better compile-time checking
 use warnings;          # better run-time checking
 use Test::More;        # advanced testing
 use Data::Dumper;
-
+use Test::Warn;
 
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local module
@@ -35,9 +35,9 @@ like($md->set_retval_scalar(2, "other SQL", [42]),
 
 # Connect and prepare
 $dbh = DBI->connect("", "", "");
-isa_ok($dbh, q{DBI}, q{Expect a DBI reference});
+isa_ok($dbh, q{DBI::db}, q{Expect a DBI::db reference});
 $select = $dbh->prepare("other SQL");
-isa_ok($select, q{DBI}, q{Expect a DBI reference});
+isa_ok($select, q{DBI::db}, q{Expect a DBI::db reference});
 
 # Verify that 1st param with value '46062' is good
 ok(!defined($md->_is_bad_param(2,1,q{46062})), q{Expect 1st param to be good in mode 2});
@@ -50,7 +50,11 @@ ok(!defined($md->_is_bad_param(2,3, q{IN})), q{Expect 3rd param to be good in mo
 
 # Bind, execute and fetch
 is($select->bind_param(1, "46062"), 1, q{Expect 1 (bind_param 1))});
-is($select->bind_param(2, "noblesville"), -1, q{Expect -1 "bad" (bind_param 2))});
+
+
+my $warn = qr/DBI::db bind_param failed/;
+warnings_like { $select->bind_param(2, "noblesville") } $warn, "Expect warning like DBI::db bind_param failed: SQL0100 MOCK_DBI: BAD PARAM 2 = 'noblesville'. SQLSTATE=02000";
+
 is($select->bind_param(3, "IN"), 1, q{Expect 1 (bind_param 3))});
 
 is($select->execute(), 1, q{Expect 1 (execute 1))});

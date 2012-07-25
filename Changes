@@ -1,5 +1,15 @@
 Revision history for Perl extension Test::MockDBI.
 
+0.66  Tue July  24 11:25:08 CET 2012
+    - The database handle returns DBI::db instead of DBI
+    - Added the support for attributes RaiseError,
+      PrintError and AutoCommit with implementation
+    - Added DBI::db::bind_param_inout() and DBI::db::begin_work()
+    - DBI::db::commit() now works, rather than only
+      pretending to work.
+    - Added DBI::db::rollback()
+    - Supports call to the method err
+     
 0.65  Mon Feb  7 07:46:08 CET 2011
     - Added LICENSE = perl to Makefile.PL.
     - Removed duplicate 'use Data::Dumper' (See cpanratings).

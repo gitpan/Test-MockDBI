@@ -14,7 +14,7 @@ use Test::More tests => 34;    # advanced testing
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );            # use local module
 use Test::MockDBI;             # what we are testing
-
+use Test::Warn;
 
 # ------ define variables
 my $dbh = "";				# mock DBI database handle
@@ -42,7 +42,7 @@ is($md->bad_method("fetchrow",          2, ""), 1, q{Expect 1});
 is($md->bad_method("fetch",             2, "^\$"), 1, q{Expect 1});
 
 # ------ fake DBI object for testing
-$dbh = bless {}, "DBI";
+$dbh = bless {}, "DBI::db";
 
 # ----- NOTE: connect() and disconnect() must be before prepare*()
 # -----       as they set the current SQL
@@ -69,8 +69,9 @@ is($dbh->finish(), undef,
 
 
 # ------ DBI prepare_cached()
-is($dbh->prepare_cached(), undef,
- "DBI prepare_cached()");
+
+my $warn = qr/DBI::db prepare_cached failed/;
+warnings_like { $dbh->prepare_cached() } $warn, "Expect warning like DBI::db prepare_cached failed";
 
 
 # ------ DBI commit()
@@ -79,8 +80,9 @@ is($dbh->commit(), undef,
 
 
 # ------ DBI bind_columns()
-is($dbh->bind_columns(), undef,
- "DBI bind_columns()");
+my $warnings = qr/DBI::db bind_columns failed/;
+warnings_like { $dbh->bind_columns() } $warnings, "Expect warning like DBI::db bind_columns failed";
+
 
 
 # ------ DBI bind_param()

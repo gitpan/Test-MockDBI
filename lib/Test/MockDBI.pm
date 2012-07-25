@@ -24,7 +24,7 @@ our @EXPORT_OK                          # symbols to export upon request
  = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();                     # symbols to always export
 our @ISA = qw(Exporter);                # we ISA Exporter :)
-our $VERSION = '0.65';                  # our version number
+our $VERSION = '0.66';                  # our version number
 
 # ------ file-global variables
 my %array_retval  = ();                 # return array values for matching SQL
@@ -43,6 +43,11 @@ my %scalar_retval = ();                 # return scalar values for matching SQL
 my $type          = 0;                  # DBI testing type from command line
 my %errstr        = ();                 # The scalar to return for errors
 my $debug         = undef;              # Toggle to enable debugging
+my $rollback      = 0;
+my $wait_for_commit = 0;
+my $commit_rollback_enable = 0;
+ 
+
 
 # ------ convert argument to defined value, use "" if undef argument
 sub _define {
@@ -111,7 +116,6 @@ sub _bind_array {
         ${$bind_columns[$i]} = $_[$i];
     }
 }
-
 
 # ------ force an array return value
 sub _force_retval_array {
@@ -225,16 +229,50 @@ sub _fake {
         $retval = shift;
         return _force_retval_rows($retval);
     } elsif ($method =~ m/^fetch/ || $method =~ m/^select/) {
+
+        
         if ($method eq "fetch"
          || $method eq "fetchrow"
          || $method eq "fetchrow_array"
          || $method eq "selectrow_array") {
-            return _force_retval_array(@_);
+            return ( $wait_for_commit && $commit_rollback_enable ) ? '' : _force_retval_array(@_);
         }
         $retval = shift;
-        return _force_retval_scalar($retval);
-    }
+        return ( $wait_for_commit && $commit_rollback_enable ) ? '' : _force_retval_scalar($retval);
+        
+    } elsif($method =~ m/^bind_param_inout/) {
+        
+        my $temp = undef;                # 1 of @bad_params
+        my $arrayref = undef;
+        $retval = shift;
+        
+        $arrayref = $arg->fetchrow_arrayref();                                 
+        $temp  = $arrayref;
+        
+        push(@{$temp}, 'SQLState') if (!grep /SQLState$/i, @{$temp});
+        push(@{$temp}, 'SQLCode') if (!grep /SQLCode$/i, @{$temp});  
+        push(@$retval, $temp);    
+        
+     
+        foreach my $val (@{$retval->[0]}) {           
+            $val = '02000' if ($val eq 'SQLState' && !$arrayref);
+            $val = '00000' if ($val eq 'SQLState' && $arrayref);
+            
+            $val = '+100' if ($val eq 'SQLCode' && !$arrayref);
+            $val = '+000' if ($val eq 'SQLCode' && $arrayref); 
+        }
+    }    
 
+    if ( defined $method && defined $arg && $method =~ /^(prepare|do|prepare_cached)/i  && $arg =~ /^(select)/i ) {        
+        $commit_rollback_enable = 0;
+        
+    }
+    # handle Insert or Update or Delete DML operations
+    if ( defined $method && defined $arg && $method =~ /^(prepare|do|prepare_cached)/i  && $arg =~ /^(insert|delete|Update)/i ) {        
+        $commit_rollback_enable = 1;
+        
+    }
+    
     $retval = shift;
     return $retval;
 }
@@ -277,7 +315,10 @@ sub set_retval_array {
     my $self   = shift;                 # my blessed self
     my $type   = shift;                 # type number from --dbitest=TYPE
     my $sql    = shift;                 # SQL pattern for badness
-
+    my $valid = [ $sql ];
+    if ( grep { m/^\s*select/i } @$valid ) {
+        $commit_rollback_enable = 0;
+    }
     push @{ $array_retval{$type} },
      { "SQL" => $sql, "retval" => [ @_ ] },
 }
@@ -288,9 +329,13 @@ sub set_retval_scalar {
     my $self   = shift;                 # my blessed self
     my $type   = shift;                 # type number from --dbitest=TYPE
     my $sql    = shift;                 # SQL pattern for badness
-
+    my $valid = [ $sql ];
+    if ( grep { m/^\s*select/i } @$valid ) {
+        $commit_rollback_enable = 0;
+    }
     push @{ $scalar_retval{$type} },
      { "SQL" => $sql, "retval" => $_[0] };
+   
 }
 
 
@@ -299,7 +344,11 @@ sub set_rows {
     my $self   = shift;                 # my blessed self
     my $type   = shift;                 # type number from --dbitest=TYPE
     my $sql    = shift;                 # SQL pattern for badness
-
+    my @Valid = qw( $sql );
+    my $valid = [ $sql ];
+    if ( grep { m/^\s*select/i } @$valid ) {
+        $commit_rollback_enable = 0;
+    }
     push @{ $rows_retval{$type} },
      { "SQL" => $sql, "retval" => $_[0] },
 }
@@ -347,6 +396,18 @@ sub _is_bad_param {
   return;
 }
 
+sub handle_errors {
+        
+        my $self   = shift;    # my blessed self
+        my $errormsg = shift; # the error message
+        my $caller = shift || (caller(1))[3]; # the error message
+        my $sqlcode = "SQL0100";
+        my $sqlstate = "SQLSTATE=02000";
+       
+        warn "DBI::db $caller failed: $sqlcode $errormsg. $sqlstate\n" if (defined ($self->{PrintError}) && $self->{PrintError} == 1);
+        die "DBI::db $caller failed: $sqlcode $errormsg. $sqlstate\n" if (defined ($self->{RaiseError}) && $self->{RaiseError} == 1);
+        
+}
 
 #
 # ------ GLOBAL INITIALIZATION
@@ -377,43 +438,125 @@ if ($type) {
         my $dsn  = _define(shift);
         my $user = _define(shift);
         my $pass = _define(shift);
-        $object = bless({}, "DBI");
+        my $attr = shift;
+      
+        $DBI::stderr =  undef; #2_000_000_000;
+        my %attributes;
+        $object = bless({}, "DBI::db");
+        
+        %attributes = (
+            PrintError => 1,
+            RaiseError => 0,
+            AutoCommit => 1,
+            ref $attr ? %$attr : (),
+        );            
+       
+        while ( my ($a, $v) = each %attributes) {
+        	 $object->{$a} = $v ;                
+        }
+        $object->{BegunWork}    = 0;
+        $object->{Errstr}       = undef;
+        $object->{Err}          = undef;       
+        
+        
+        $wait_for_commit        = 1 if $object->{AutoCommit} == 0 ;
         $cur_sql = "CONNECT TO $dsn AS $user WITH $pass";
         $fail_param = 0;
         @bind_columns = ();
-        return _fake("connect", $cur_sql, $object);
+       
+        return _fake("connect", $cur_sql, $object) or handle_errors($object,"$self connect ($dsn) failed", "connect");
      },
+     
+     errstr =>  sub {
+        my $self = shift;
+        $DBI::stderr = "Could not make fake connection\n";
+        return $DBI::stderr if defined $DBI::stderr;
+        return _fake("errstr", $_[0], $errstr{$type});
+     },
+     err =>  sub {
+        my $self = shift;
+        $DBI::stderr = "DB Engine Native Error Code - Could not make fake connection\n";
+        return $DBI::stderr if defined $DBI::stderr;
+        return _fake("errstr", $_[0], $errstr{$type});
+     },
+    );
+    
+    $mock->fake_module( "DBI::db",
      ping =>  sub {
-         return _fake("ping", $_[1], 1);
+        my $self = shift;
+        return _fake("ping", $_[1], 1) or handle_errors($self,"Unable to ping", "ping");
      },
      disconnect =>  sub {
+        my $self = shift;
         $cur_sql = "DISCONNECT";
         $fail_param = 0;
         @bind_columns = ();
-        return _fake("disconnect", $_[1], 1);
+        return _fake("disconnect", $_[1], 1) or handle_errors($self,"Unable to ping", "disconnect");
      },
      errstr =>  sub {
-       return _fake("errstr", $_[1], $errstr{$type});
+        my $self = shift;
+        $self->{Errstr} = $DBI::stderr;
+        return $self->{Errstr} if defined $self->{Errstr};#DBI->errstr;
+        return _fake("errstr", $_[0], $errstr{$type});
+     },
+     err =>  sub {
+        my $self = shift;
+        $self->{Err} = $DBI::stderr;
+        return $self->{Err};# if defined $self->{Err};#DBI->errstr;
+        return _fake("errstr", $_[0], $errstr{$type});
      },
      prepare =>  sub {
-        $cur_sql = _define($_[1]);
+        my $self =shift;
+        $cur_sql = shift;
+        $cur_sql = _define($cur_sql);
         $fail_param = 0;
         @bind_columns = ();
-        return _fake("prepare", $_[1], $object);
+        
+        unless ( $cur_sql =~ /\w+/ ) {
+            $DBI::stderr = "Could not prepare, Please check the SQL query";
+            handle_errors($self,"Could not prepare", "prepare");
+        }
+        
+        
+        return _fake("prepare", $cur_sql, $object);
      },
      prepare_cached =>  sub {
+        
         $cur_sql = _define($_[1]);
         $fail_param = 0;
         @bind_columns = ();
+        
+        unless ( $cur_sql =~ /\w+/ ) {
+            $DBI::stderr = "Could not prepare, Please check the SQL query";
+            handle_errors($object,"Could not prepare", "prepare_cached");
+        }
+        
         return _fake("prepare_cached", $_[1], $object);
      },
      commit =>  sub {
-        return _fake("commit", $_[1], 1);
+        my $self  = shift;
+        
+        if ( defined($self->{AutoCommit}) && $self->{AutoCommit} == 1){
+            $DBI::stderr = "Cannot commit when AutoCommit is on";
+            warn $DBI::stderr;
+            handle_errors($object,"Cannot commit when AutoCommit is on", "commit");
+            return 1;
+        }
+        
+        if ( $commit_rollback_enable ){
+            $wait_for_commit = $rollback ? 1 : 0 ;
+            $self->{AutoCommit} = 1 if ($self->{BegunWork} == 1);
+            $self->{BegunWork} = 0;           
+        }
+        return _fake("commit", $_[0], 1) or handle_errors($object,"Commit failed", "commit");
      },
      bind_columns =>  sub {
         shift;
-        @bind_columns = @_;
-        return _fake("bind_columns", $_[0], 1);
+        unless(scalar(@_)) {
+            handle_errors($object,"There are no columns for binding", "bind_columns");
+        }
+        @bind_columns = @_;        
+        return _fake("bind_columns", $_[0], 1) or handle_errors($object,"Binding failed", "bind_columns");
      },
      bind_param => sub {
         # Return 1 if param bound was good, otherwise -1 (still true,
@@ -427,7 +570,9 @@ if ($type) {
 
         print "\nbind_param()\n" if ($debug);
         print "parm $param, value " if ($debug);
+        
         print Dumper($value);
+        
         if ($attr_or_type) {
             if (ref($attr_or_type) eq "HASH") {
                 print "  attrs ", Dumper($attr_or_type) if ($debug);
@@ -445,47 +590,94 @@ if ($type) {
              && $bad_param->[1] == $param
              && $bad_param->[2] eq $value) {
                 print "MOCK_DBI: BAD PARAM $param = '$value'\n" if ($debug);
+                handle_errors($object,"MOCK_DBI: BAD PARAM $param = '$value'", "bind_param");
                 $fail_param = 1;
                 return -1;  # Indicate that param is bad
             }
         }
         return 1;
      },
+     bind_param_inout => sub {
+               
+        my $self        = shift;             # my blessed self
+        my $params       = _define(shift);    # parameter number
+        my $ref_value   = shift;             # Reference of bind value
+        
+        my $max_len     = _define(shift);    # Min. amount of memory to allocate to bind value
+        
+        unless ( ref $ref_value ~~ /ARRAY/) {
+            $DBI::stderr = "The return paramater must be array reference";
+            handle_errors($self,"The return parameter must be array reference", "bind_param_inout");
+            return;
+        }
+        
+        return _fake("bind_param_inout", $self, $ref_value) or handle_errors($self,"Binding failed", "bind_param_inout");
+        
+     },
      do =>  sub {
+        my $self        = shift;             # my blessed self
+        my $params       = _define(shift);    # parameter number
+        unless ( $params =~ /\w+/) {
+            $DBI::stderr = "Expect SQL query";
+            handle_errors($self,"Expect SQL query", "do");
+            return;
+        }
         return _fake("do", $_[1], 1);
      },
      execute =>  sub {
-        return _fake("execute", $_[1], 1);
+        return _fake("execute", $_[1], 1) or handle_errors($object,"Execute failed", "execute");
      },
      finish =>  sub {
         $fail_param = 0;
-        return _fake("finish", $_[1], 1);
+        return _fake("finish", $_[1], 1) or handle_errors($object,"Finish failed", "finish");
      },
      fetchall_arrayref =>  sub {
-        return _fake("fetchall_arrayref", $_[1], undef);
+        return _fake("fetchall_arrayref", $_[1], undef) or handle_errors($object,"Fetch all array reference failed", "fetchall_arrayref");
      },
      fetchrow_arrayref =>  sub {
-        return _fake("fetchrow_arrayref", $_[1], undef);
+        return _fake("fetchrow_arrayref", $_[1], undef) or handle_errors($object,"Fetch row array reference failed", "fetchrow_arrayref");
      },
      fetchrow_hashref =>  sub {
-        return _fake("fetchrow_hashref", $_[1], undef);
+        return _fake("fetchrow_hashref", $_[1], undef) or handle_errors($object,"Fetch row hash reference failed", "fetchrow_hashref");
      },
      fetchall_hashref =>  sub {
-        return _fake("fetchall_hashref", $_[1], undef);
+        return _fake("fetchall_hashref", $_[1], undef) or handle_errors($object,"Fetch all hash reference failed", "fetchall_hashref");
      },
      fetchrow_array =>  sub {
-        return _fake("fetchrow_array", $_[1]);
+        return _fake("fetchrow_array", $_[1]) or handle_errors($object,"Fetch row array failed", "fetchrow_array");
      },
      fetchrow =>  sub {
-        return _fake("fetchrow", $_[1]);
+        return _fake("fetchrow", $_[1]) or handle_errors($object,"Fetch row failed", "fetchrow");
      },
      fetch =>  sub {
-        return _fake("fetch", $_[1]);
+        return _fake("fetch", $_[1]) or handle_errors($object,"Fetch failed", "fetch");
      },
      rows =>  sub {
-        return _fake("rows", $_[1], 0);
+        return _fake("rows", $_[1], 0) or handle_errors($object,"Rows failed", "rows");
      },
-     );
+     begin_work => sub {
+        my $self = shift;
+        $self->{AutoCommit} = 0;
+        $wait_for_commit = 1;
+        $self->{BegunWork} = 1;
+        return _fake("begin_work", $_[1], 0) or handle_errors($self,"Begin work unable to set", "begin_work");
+     },
+     rollback => sub {
+        my $self  = shift;       
+        if ( $self->{AutoCommit} == 1){
+                $DBI::stderr = "Cannot rollback when AutoCommit is on";
+                warn $DBI::stderr;
+                handle_errors($self,"Cannot rollback when AutoCommit is on", "rollback");
+                return 1;
+        }
+        if ( $commit_rollback_enable ){
+            $rollback = 1;
+            $self->{AutoCommit} = 1 if ($self->{BegunWork} == 1);
+            $self->{BegunWork} = 0;           
+        };
+         return _fake("rollback", $_[0], 1) or handle_errors($self,"Rollback failed", "rollback");
+     },
+    );
     $mock->fake_new("DBI");
 }
 
@@ -494,6 +686,9 @@ if ($type) {
 # ------ return our instance, as we are a singleton class
 sub get_instance {
   $debug = shift;
+  $rollback = 0;
+  $wait_for_commit = 0;
+  $commit_rollback_enable = 0;
   return $instance;
 }
 

@@ -11,12 +11,13 @@ use strict;            # better compile-time checking
 use warnings;          # better run-time checking
 
 use Test::More;        # advanced testing
+use Test::Warn;
 
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local module
 use Test::MockDBI;     # module we are testing
 
-plan tests => 1;
+plan tests => 2;
 
 # ------ define variables
 my $dbh = "";          # mock DBI database handle
@@ -24,9 +25,13 @@ my $tmd = "";          # Test::MockDBI object
 
 # ------ undef #rows argument
 $tmd = get_instance Test::MockDBI;
-$tmd->set_rows(1, "some rows", undef);
+
+warning_like{
+  $tmd->set_rows(1, "some rows", undef);
+} qr/set_rows is deprecated/, "Legacy warning displayed";
+
 $dbh = DBI->connect();
-$dbh->prepare("some rows");
-ok(!defined($dbh->rows()), q{Expect rows() to be undef)});
+my $sth = $dbh->prepare("some rows");
+ok(!defined($sth->rows()), q{Expect rows() to be undef)});
 
 __END__

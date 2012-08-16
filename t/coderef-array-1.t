@@ -10,12 +10,12 @@ use strict;            # better compile-time checking
 use warnings;          # better run-time checking
 
 use Test::More;        # advanced testing
-
+use Test::Warn;
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local module
 use Test::MockDBI;     # module we are testing
 
-plan tests => 2;
+plan tests => 3;
 
 # ------ define variables
 my $dbh    = "";                            # mock DBI database handle
@@ -24,18 +24,23 @@ my @retval = ();                            # return value from fetchrow_array()
 
 # ------ set up return values for DBI fetch*() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_array(2, "FETCHROW_ARRAY",  sub { return 1054;});
+
+warning_like{
+  $md->set_retval_array(2, "FETCHROW_ARRAY",  sub { return 1054;});
+} qr/set_retval_array is deprecated/, "Legacy warning displayed";
 
 # test non-matching sql
-$dbh->prepare("other SQL");  
-ok(!defined($dbh->fetchrow_array()), q{Expect undef for non-matching sql});
-$dbh->finish();
+my $sth = $dbh->prepare("other SQL");
+$sth->execute();
+ok(!defined($sth->fetchrow_array()), q{Expect undef for non-matching sql});
+$sth->finish();
 
 # test matching sql
-$dbh->prepare("FETCHROW_ARRAY");  
-@retval = $dbh->fetchrow_array();
+$sth = $dbh->prepare("FETCHROW_ARRAY");
+$sth->execute();
+@retval = $sth->fetchrow_array();
 is_deeply(\@retval, [ 1054 ], q{Expect array with element 1054});
-$dbh->finish();
+$sth->finish();
 
 
 __END__

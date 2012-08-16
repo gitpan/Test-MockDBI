@@ -10,12 +10,13 @@ use strict;            # better compile-time checking
 use warnings;          # better run-time checking
 
 use Test::More;        # advanced testing
+use Test::Warn;
 
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local module
 use Test::MockDBI;     # module we are testing
 
-plan tests => 3;
+plan tests => 4;
 
 
 # ------ define variables
@@ -26,21 +27,26 @@ my $retval = undef;                            # return array from fetchrow_arra
 
 # ------ set up return values for DBI fetch*() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_scalar(2, "FETCHROW_ARRAYREF", [ 42 ]); 
+
+warning_like{
+  $md->set_retval_scalar(2, "FETCHROW_ARRAYREF", [ 42 ]);
+} qr/set_retval_scalar is deprecated/, "Legacy warning displayed";
 
 # test non-matching sql
-$dbh->prepare("other SQL");  
-$retval = $dbh->fetchrow_arrayref();
+my $sth = $dbh->prepare("other SQL");  
+$retval = $sth->fetchrow_arrayref();
+$sth->execute();
 ok(!defined($retval), q{Expect 0 columns});
-$dbh->finish();
+$sth->finish();
 
 # test matching sql
-$dbh->prepare("FETCHROW_ARRAYREF");  
-$retval = $dbh->fetchrow_arrayref();
+$sth = $dbh->prepare("FETCHROW_ARRAYREF");
+$sth->execute();
+$retval = $sth->fetchrow_arrayref();
 ok(defined($retval), q{Expect 1 column in row});
 is_deeply($retval, [ 42 ], q{Expect 1st column in row to contain 42});
 
-$dbh->finish();
+$sth->finish();
 
 __END__
 

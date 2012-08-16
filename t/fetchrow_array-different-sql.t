@@ -10,8 +10,9 @@ use strict;            # better compile-time checking
 use warnings;          # better run-time checking
 
 use Test::More;
+use Test::Warn;
 
-plan tests => 5;
+plan tests => 7;
 
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local module
@@ -25,34 +26,44 @@ my @retval = ();       # return value from fetchrow_array()
 
 # ------ set up return values for DBI fetch*() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_array(2, "FETCHROW_ARRAY", "go deep", 476);
-$md->set_retval_array(2, "SELECT zip5_zipcode.+'Chino Hills'",
- "Experian stuff", 1492);
+
+warning_like{
+  $md->set_retval_array(2, "FETCHROW_ARRAY", "go deep", 476);
+} qr/set_retval_array is deprecated/, "Legacy warning displayed";
+
+warning_like{
+  $md->set_retval_array(2, "SELECT zip5_zipcode.+'Chino Hills'", "Experian stuff", 1492);
+} qr/set_retval_array is deprecated/, "Legacy warning displayed";
 
 # test non-matching sql
-$dbh->prepare("other SQL");
-ok(!defined($dbh->fetchrow_array()), q{Expect undef on non-matching sql});
-$dbh->finish();
+my $sth = $dbh->prepare("other SQL");
+$sth->execute();
+ok(!defined($sth->fetchrow_array()), q{Expect undef on non-matching sql});
+$sth->finish();
 
 # test matching sql
-$dbh->prepare("FETCHROW_ARRAY");
-@retval = $dbh->fetchrow_array();
-is_deeply(\@retval, [ "go deep", 476 ]);
-$dbh->finish();
+$sth = $dbh->prepare("FETCHROW_ARRAY");
+$sth->execute();
+@retval = $sth->fetchrow_array();
+is_deeply(\@retval, [ "go deep", 476 ], "Retval");
+$sth->finish();
 
 # test non-matching sql again
-$dbh->prepare("STILL oTheR SQL");
-ok(!defined($dbh->fetchrow_array()), q{Expect undef on another non-matching sql});
-$dbh->finish();
+$sth = $dbh->prepare("STILL oTheR SQL");
+$sth->execute();
+ok(!defined($sth->fetchrow_array()), q{Expect undef on another non-matching sql});
+$sth->finish();
 
 # test another matching sql
-$dbh->prepare("SELECT zip5_zipcode FROM ziplist5 WHERE zip5_cityname = 'Chino Hills'");
-@retval = $dbh->fetchrow_array();
+$sth = $dbh->prepare("SELECT zip5_zipcode FROM ziplist5 WHERE zip5_cityname = 'Chino Hills'");
+$sth->execute();
+@retval = $sth->fetchrow_array();
 is_deeply(\@retval, ["Experian stuff", 1492], q{Expect array ("Experian stuff", 1492)});
-$dbh->finish();
+$sth->finish();
 
 # test non-matching sql third time
-$dbh->prepare("LaSt sqL");
-ok(!defined($dbh->fetchrow_array()), q{Expect undef on another non-matching sql});
+$sth = $dbh->prepare("LaSt sqL");
+$sth->execute();
+ok(!defined($sth->fetchrow_array()), q{Expect undef on another non-matching sql});
 
 __END__

@@ -8,12 +8,13 @@ BEGIN { push @ARGV, "--dbitest=2"; }
 
 use Data::Dumper;
 use Test::More;
+use Test::Warn;
 
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local version of Test::MockDBI
 use Test::MockDBI;			
 
-plan tests => 10;
+plan tests => 11;
 
 # ------ define variables
 my $dbh = "";                                      # mock DBI database handle
@@ -27,14 +28,16 @@ my $arrayref = [
   { key1line3 => 'value5', key2line3 => 'value6' },
 ];
 $dbh = DBI->connect("", "", "");
-$md->set_retval_scalar(
-  2, "FETCHROW_HASHREF", sub { shift @$arrayref }
-);
 
-$dbh->prepare("FETCHROW_HASHREF");
+warning_like{
+  $md->set_retval_scalar(2, "FETCHROW_HASHREF", sub { shift @$arrayref });
+} qr/set_retval_scalar is deprecated/, "Legacy warning displayed";
+
+my $sth = $dbh->prepare("FETCHROW_HASHREF");
+$sth->execute();
 
 # row 1
-$hashref = $dbh->fetchrow_hashref();
+$hashref = $sth->fetchrow_hashref();
 ok($hashref, q{Expect fetchrow_hashref to return true for first row});
 isa_ok($hashref, q{HASH}, q{Expect fetchrow_hashref to return a HASH ref  first row});
 
@@ -45,7 +48,7 @@ is_deeply(
 );
 
 # row 2
-$hashref = $dbh->fetchrow_hashref();
+$hashref = $sth->fetchrow_hashref();
 ok($hashref, q{Expect fetchrow_hashref to return true for second row});
 isa_ok($hashref, q{HASH}, q{Expect fetchrow_hashref to return a HASH ref second row});
 is_deeply(
@@ -55,7 +58,7 @@ is_deeply(
 );
 
 # row 3
-$hashref = $dbh->fetchrow_hashref();
+$hashref = $sth->fetchrow_hashref();
 ok($hashref, q{Expect fetchrow_hashref to return true for third row});
 isa_ok($hashref, q{HASH}, q{Expect fetchrow_hashref to return a HASH ref second row});
 is_deeply(
@@ -65,7 +68,7 @@ is_deeply(
 );
 
 # row 4 - expected to be undefined
-$hashref = $dbh->fetchrow_hashref();
+$hashref = $sth->fetchrow_hashref();
 ok(!$hashref, q{Expect fetchrow_hashref to return false the fourth time}) or 
 	diag(q{rv:}.Dumper($hashref));
 

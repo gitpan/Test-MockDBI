@@ -8,6 +8,7 @@ BEGIN { push @ARGV, "--dbitest=42"; }
 
 use Data::Dumper;
 use Test::More;
+use Test::Warn;
 
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );    # use local version of Test::MockDBI
@@ -23,17 +24,22 @@ my $hashref = undef;
 
 # ------ set up return values for DBI fetchrow_hashref() methods
 $dbh = DBI->connect("", "", "");
-$md->set_retval_scalar(42, "FETCHROW_HASHREF", { key => 'value' });
+
+warning_like{
+  $md->set_retval_scalar(42, "FETCHROW_HASHREF", { key => 'value' });
+} qr/set_retval_scalar is deprecated/, "Legacy warning displayed";  
 
 # non-matching sql
-$dbh->prepare("other SQL");
-$hashref = $dbh->fetchrow_hashref();
+my $sth = $dbh->prepare("other SQL");
+$sth->execute();
+$hashref = $sth->fetchrow_hashref();
 ok(!defined($hashref), q{Expect fetchrow_hashref to return undefined value for non-matching sql});
-$dbh->finish();
+$sth->finish();
 
 # matching sql
-ok($dbh->prepare("FETCHROW_HASHREF"), q{prepare});
-$hashref = $dbh->fetchrow_hashref();
+$sth = $dbh->prepare("FETCHROW_HASHREF");
+$sth->execute();
+$hashref = $sth->fetchrow_hashref();
 isa_ok($hashref, q{HASH}, q{Expect fetchrow_hashref to return a HASH ref}) or 
 	diag(q{hashref:}.Dumper($hashref));
 is_deeply($hashref, { key => 'value' }, q{Expect fetchrow_hashref to return { key => value }});

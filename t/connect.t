@@ -9,7 +9,7 @@ BEGIN { push @ARGV, "--dbitest"; }
 use strict;      # better compile-time checking
 use warnings;    # better run-time checking
 
-use Test::More tests => 6;    # advanced testing
+use Test::More tests => 2;    # advanced testing
 use File::Spec::Functions;
 use lib catdir qw ( blib lib );           # use local module
 use Test::MockDBI;            # what we are testing
@@ -18,13 +18,5 @@ use Test::MockDBI;            # what we are testing
 my $dbh = DBI->connect("universe", "mortal", "root-password");
 isa_ok($dbh, q{DBI::db}, q{Expect a DBI::db reference});
 is($dbh->disconnect(), 1, q{Expect disconnect() == 1});
-
-
-#connect with overidding the attr
-my $dbh_att = DBI->connect("universe", "mortal", "root-password",{PrintError => 0, RaiseError => 1});
-isa_ok($dbh_att, q{DBI::db}, q{Expect a DBI::db reference});
-is($dbh_att->{RaiseError}, 1, "RaiseError is set to 1");
-is($dbh_att->{PrintError}, 0, "PrintError is set to 0");
-is($dbh_att->disconnect(), 1, q{Expect disconnect() == 1});
 
 __END__

@@ -1,5 +1,6 @@
 Revision history for Perl extension Test::MockDBI.
-0.70 Tue Aug 14
+
+0.70 Thu Sep  6 15:47:46 CEST 2012
     - Almost completely rewritten the code
     - Added support for more mocked methods
     - Test::MockDBI now returns the correct object types (DBI::db &

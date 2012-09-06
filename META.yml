@@ -34,4 +34,4 @@ requires:
   Test::Warn: 0
 resources:
   repository: https://github.com/aff/Test-MockDBI
-version: 0.66_03
+version: 0.70

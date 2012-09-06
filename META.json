@@ -50,11 +50,11 @@
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "repository" : {
          "url" : "https://github.com/aff/Test-MockDBI"
       }
    },
-   "version" : "0.66_03"
+   "version" : "0.70"
 }
